@@ -4,6 +4,9 @@
     <meta charset="UTF-8">
     <title>班級幹部票選系統</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+   <!-- 這兩行是關鍵：Firebase SDK（compat 版，跟原本 Gemini 的一致） -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
     <!-- Tailwind via CDN (for basic utility classes, non必須但保留以便排版) -->
     <script src="https://cdn.tailwindcss.com"></script>
     
@@ -371,7 +374,10 @@
 
         const candidate = { seat: seat, name: students[seat], votes: 0 };
         currentCandidates.push(candidate);
-        db.ref('election/candidates').set(currentCandidates);
+       // 寫回 Firebase
+    db.ref('election/candidates').set(currentCandidates);
+    // **立刻重畫老師端的候選人卡片**
+    renderCandidatesTeacher();
         seatInput.value = "";
     }
 
@@ -444,6 +450,8 @@
         db.ref('election/candidates').set([]);
         db.ref('election/state').set({ isActive: false });
         document.getElementById('teacher-status').textContent = "⚪ 等待開始";
+        // 把畫面上的候選人卡清掉
+       renderCandidatesTeacher();
     }
 
     function confirmElection() {
@@ -714,6 +722,7 @@
 </script>
 </body>
 </html>
+
 
 
 
