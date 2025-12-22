@@ -1,1 +1,722 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <title>班級幹部票選系統</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <!-- Firebase SDK（compat 版，與你 Gemini 的用法一致） -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+
+    <!-- Tailwind -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- jsPDF & html2canvas -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
+    <style>
+        body {
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            background: #f3f4f6;
+            margin: 0;
+            padding: 0;
+        }
+        .container {
+            max-width: 960px;
+            margin: 20px auto;
+            padding: 15px;
+        }
+        .card {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 10px 25px rgba(15, 23, 42, 0.12);
+            padding: 20px;
+        }
+        h1, h2, h3 {
+            margin: 0 0 10px 0;
+        }
+        button {
+            border-radius: 999px;
+            padding: 10px 18px;
+            border: none;
+            font-size: 1rem;
+            cursor: pointer;
+        }
+        .btn-primary { background: #2563eb; color: white; }
+        .btn-secondary { background: #16a34a; color: white; }
+        .btn-blue { background:#2563eb; color:white; }
+        .btn-green { background:#16a34a; color:white; }
+        .btn-red { background:#ef4444; color:white; }
+        .btn-gray { background:#6b7280; color:white; }
+        .hidden { display:none; }
+
+        .candidate-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+            gap: 10px;
+            margin-top: 10px;
+        }
+        .candidate-card {
+            background: #f8fafc;
+            border: 1px solid #cbd5e1;
+            padding: 12px;
+            border-radius: 10px;
+            text-align: center;
+        }
+        .candidate-card .seat {
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: #0f172a;
+        }
+        .candidate-card .name {
+            margin-top: 4px;
+            font-size: 1.05rem;
+        }
+        .candidate-card .vote-count {
+            font-size: 1.4rem;
+            color: #2563eb;
+            font-weight: bold;
+            margin-top: 8px;
+            display: block;
+        }
+
+        .vote-buttons {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+            margin-top: 15px;
+        }
+        .vote-btn {
+            border-radius: 16px;
+            border: 2px solid #2563eb;
+            padding: 18px 0;
+            font-size: 1.6rem;
+            background: white;
+            color: #2563eb;
+        }
+        .vote-btn.selected {
+            background: #2563eb;
+            color: white;
+        }
+
+        #student-status-bar {
+            margin-top: 10px;
+            padding: 8px;
+            border-radius: 8px;
+            font-size: 0.95rem;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+            font-size: 0.95rem;
+        }
+        th, td {
+            border: 1px solid #d1d5db;
+            padding: 6px 8px;
+            text-align: left;
+        }
+        th {
+            background: #e5e7eb;
+        }
+
+        /* 老師端佈局優化 */
+        .mode-title-row {
+            display:flex;
+            gap:8px;
+            flex-wrap:wrap;
+            margin-bottom:8px;
+        }
+        .mode-title-row select {
+            flex:1;
+            min-width:0;
+        }
+        .seat-input-row {
+            display:flex;
+            gap:8px;
+            align-items:center;
+            margin-top:4px;
+        }
+        .seat-input {
+            max-width:140px;
+        }
+        .seat-grid-wrapper {
+            margin-top:8px;
+            max-height:140px;
+            overflow-y:auto;
+        }
+        .seat-grid {
+            display:grid;
+            grid-template-columns: repeat(auto-fill, minmax(40px, 1fr));
+            gap:4px;
+        }
+        .seat-btn {
+            padding:6px 0;
+            font-size:0.9rem;
+            background:#ffffff !important;
+            color:#0f172a !important;
+            border:1px solid #cbd5e1;
+            border-radius:6px;
+        }
+        .seat-btn:active {
+            transform:scale(0.96);
+        }
+
+        /* 學生端新控制區 */
+        #student-actions { margin-top:12px; }
+        #selected-info {
+            text-align:center;
+            font-size:0.95rem;
+            color:#0f172a;
+            margin-bottom:6px;
+        }
+
+        @media (max-width: 640px) {
+            .container { padding: 10px; }
+            button { font-size: 0.95rem; }
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <!-- 角色選擇 -->
+    <div class="card" id="role-selection">
+        <h1 class="text-2xl font-bold mb-4">🗳️ 班級幹部票選</h1>
+        <div class="flex flex-col gap-3">
+            <button class="btn-primary" onclick="initTeacher()">我是老師 (管理)</button>
+            <button class="btn-secondary" onclick="initStudent()">我是學生 (投票)</button>
+        </div>
+    </div>
+
+    <!-- 學生畫面 -->
+    <div class="card hidden" id="student-view">
+        <h2>📱 學生投票區</h2>
+
+        <div id="student-login">
+            <label>我的座號：</label>
+            <input type="number" id="student-seat-input" placeholder="輸入座號" class="border rounded px-2 py-1" style="width:120px;">
+            <button class="btn-primary" onclick="studentLogin()">登入</button>
+        </div>
+
+        <div id="voting-area" class="hidden">
+            <div id="student-status-bar" style="background:#fff7ed;">☕ 等待老師發起下一輪...</div>
+            <p style="margin-top:8px;">我是：<span id="display-student-id"></span>號</p>
+
+            <div id="vote-options" class="vote-buttons hidden">
+                <button class="vote-btn" onclick="castVote(1)">1</button>
+                <button class="vote-btn" onclick="castVote(2)">2</button>
+                <button class="vote-btn" onclick="castVote(3)">3</button>
+                <button class="vote-btn" onclick="castVote(4)">4</button>
+                <button class="vote-btn" onclick="castVote(5)">5</button>
+                <button class="vote-btn" onclick="castVote(6)">6</button>
+            </div>
+
+            <div id="student-actions" class="hidden">
+                <div id="selected-info">已選：0/1位</div>
+                <button id="submit-vote-btn" class="btn-green" style="width:100%; margin-bottom:6px;" onclick="submitVote()">送出投票</button>
+                <button id="clear-vote-btn" class="btn-gray" style="width:100%;" onclick="clearSelection()">清除選擇</button>
+            </div>
+
+            <div id="volunteer-area" class="hidden">
+                <button class="btn-green" style="width:100%; padding:30px; font-size:1.5rem;" onclick="volunteerMe()">✋ 我自願擔任</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 老師畫面 -->
+    <div id="teacher-view" class="hidden">
+        <h2>👨‍🏫 老師管理台</h2>
+
+        <div style="background:#eff6ff; padding:15px; border-radius:8px; margin-bottom:15px;">
+            <h3>1. 設定與提名</h3>
+            <div class="mode-title-row">
+                <select id="vote-mode" onchange="updateTitleOptions()">
+                    <option value="1">模式一：最高票當選 (1人)</option>
+                    <option value="2">模式二：正副幹部 (2人)</option>
+                    <option value="3">模式三：自願擔任 (不須投票)</option>
+                </select>
+                <select id="officer-title"></select>
+            </div>
+
+            <div class="seat-input-row">
+                <input type="number" id="input-seat" placeholder="輸入座號加入" class="seat-input">
+                <button class="btn-blue" onclick="addCandidateLocal()">加入</button>
+            </div>
+
+            <div class="seat-grid-wrapper">
+                <div id="seat-grid" class="seat-grid"></div>
+            </div>
+
+            <div id="candidate-list" class="candidate-grid"></div>
+        </div>
+
+        <div style="background:#f0fdf4; padding:15px; border-radius:8px; margin-bottom:15px;">
+            <h3>2. 投票控制</h3>
+            <p id="teacher-status" style="margin-bottom:10px;">⚪ 等待開始</p>
+            <div class="flex flex-wrap gap-2 mb-3">
+                <button class="btn-green" onclick="startVoting()">開始投票 / 開放自願</button>
+                <button class="btn-red" onclick="reVote()">重新投票</button>
+                <button class="btn-gray" onclick="clearCandidates()">清除 / 下一位</button>
+            </div>
+            <button class="btn-blue" onclick="confirmElection()">✅ 確認當選</button>
+        </div>
+
+        <div class="card">
+            <h3>🏆 當選名單</h3>
+            <div id="elected-table">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>職位</th>
+                            <th>座號姓名</th>
+                        </tr>
+                    </thead>
+                    <tbody id="elected-body"></tbody>
+                </table>
+            </div>
+            <button class="btn-green mt-3" onclick="exportPDF()">下載 PDF</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // ========== 1. Firebase 設定（使用你原本的專案 class-vote-8dd3c） ==========
+    const firebaseConfig = {
+        apiKey: "AIzaSyBszNFqZSwar3bQdNuH7l4IBnZ-xA5gVus",
+        authDomain: "class-vote-8dd3c.firebaseapp.com",
+        databaseURL: "https://class-vote-8dd3c-default-rtdb.firebaseio.com",
+        projectId: "class-vote-8dd3c",
+        storageBucket: "class-vote-8dd3c.firebasestorage.app",
+        messagingSenderId: "322166603892",
+        appId: "1:322166603892:web:b0b8222d9dc08a8ac5d121",
+        measurementId: "G-JWLTH9RDHN"
+    };
+
+    if (!firebaseConfig.apiKey) {
+        alert("⚠️ 請先設定 Firebase Config");
+    } else {
+        firebase.initializeApp(firebaseConfig);
+    }
+    const db = firebase.database();
+
+    // ========== 2. 班級學生名單 ==========
+    const students = {
+        "1": "鄭若姍", "2": "吳瑋庭", "3": "劉于安", "4": "馬如君", "5": "張佳玉",
+        "6": "胡晏瑋", "7": "蕭雅蕙", "8": "曾佩萱", "9": "張憶汝", "10": "翁嘉鍹",
+        "11": "鍾沂芯", "12": "詹芛淳", "13": "曾鈴惠", "14": "余泓穎", "15": "歐奕廷",
+        "16": "林泓廷", "17": "張玉承", "18": "簡鼎恩", "19": "陳杰安", "20": "林逸昌",
+        "21": "吳律錡", "22": "白宇恆", "23": "蔡米傑", "24": "林岑謚", "25": "葉益華",
+        "26": "王昱仁", "27": "高翊家", "28": "陳昀政", "29": "莊秉閎", "30": "廖家鴻",
+        "31": "許家睿", "32": "張峻源", "33": "曾龍杰", "34": "周延叡"
+    };
+
+    const MAX_SEAT_NO = 34;
+    const titlesMode1 = ["班長", "副班長", "風紀股長", "副風紀股長", "衛生股長", "副衛生股長", "學藝股長", "副學藝股長", "環保股長", "總務股長", "輔導股長", "合作教育股長", "公務、圖書、資訊股長", "體育股長"];
+    const titlesMode2 = ["班長與副班長", "風紀股長與副風紀股長", "衛生股長與副衛生股長", "學藝股長與副學藝股長"];
+    const titlesMode3 = titlesMode1;
+
+    let mySeat = "";
+    let currentCandidates = [];
+    let electedList = [];
+    let currentState = { isActive: false };
+    let lastState = { isActive: false };
+    let selectedCandidates = [];
+
+    // ========== 3. 老師端 ==========
+    function initTeacher() {
+        document.getElementById('role-selection').classList.add('hidden');
+        document.getElementById('teacher-view').classList.remove('hidden');
+        updateTitleOptions();
+        renderSeatGrid();
+
+        db.ref('election/candidates').on('value', (snapshot) => {
+            const data = snapshot.val() || [];
+            currentCandidates = data;
+            renderCandidatesTeacher();
+        });
+    }
+
+    function updateTitleOptions() {
+        const mode = document.getElementById('vote-mode').value;
+        const sel = document.getElementById('officer-title');
+        sel.innerHTML = "";
+        let list = titlesMode1;
+        if (mode === "2") list = titlesMode2;
+        else if (mode === "3") list = titlesMode3;
+
+        list.forEach(t => {
+            const opt = document.createElement('option');
+            opt.value = t;
+            opt.textContent = t;
+            sel.appendChild(opt);
+        });
+    }
+
+    function addCandidateLocal() {
+        const seatInput = document.getElementById('input-seat');
+        const seat = seatInput.value.trim();
+        if (!seat) return alert("請輸入座號");
+        if (!students[seat]) return alert("沒有這個座號的學生");
+
+        if (currentCandidates.length >= 6) {
+            alert("最多只能 6 位候選人");
+            return;
+        }
+        if (currentCandidates.some(c => c.seat == seat)) {
+            alert("這個座號已在候選人名單中");
+            return;
+        }
+
+        const candidate = { seat: seat, name: students[seat], votes: 0 };
+        currentCandidates.push(candidate);
+        db.ref('election/candidates').set(currentCandidates);
+        renderCandidatesTeacher();
+        seatInput.value = "";
+    }
+
+    function renderCandidatesTeacher() {
+        const div = document.getElementById('candidate-list');
+        if (!div) return;
+        div.innerHTML = "";
+        currentCandidates.forEach((c, idx) => {
+            div.innerHTML += `
+                <div class="candidate-card">
+                    <div class="seat">${idx + 1}. ${c.seat}號</div>
+                    <div class="name">${c.name}</div>
+                    <div class="vote-count">${c.votes} 票</div>
+                </div>`;
+        });
+    }
+
+    function renderSeatGrid() {
+        const grid = document.getElementById('seat-grid');
+        if (!grid) return;
+        grid.innerHTML = "";
+        for (let i = 1; i <= MAX_SEAT_NO; i++) {
+            const btn = document.createElement('button');
+            btn.className = 'seat-btn';
+            btn.textContent = i;
+            btn.onclick = () => addCandidateBySeat(i);
+            grid.appendChild(btn);
+        }
+    }
+
+    function addCandidateBySeat(seat) {
+        const seatInput = document.getElementById('input-seat');
+        seatInput.value = seat;
+        addCandidateLocal();
+    }
+
+    function startVoting() {
+        const mode  = document.getElementById('vote-mode').value;
+        const title = document.getElementById('officer-title').value;
+        if (!title) return alert("請先選擇幹部名稱");
+        if (mode !== "3" && currentCandidates.length === 0) {
+            return alert("請先加入候選人");
+        }
+
+        currentState = {
+            isActive: true,
+            mode: mode,
+            title: title,
+            candidateCount: currentCandidates.length,
+            timestamp: Date.now()
+        };
+        db.ref('election/state').set(currentState);
+        db.ref(`election/voters/${currentState.timestamp}`).set(null);
+
+        document.getElementById('teacher-status').textContent = "🟢 投票進行中";
+    }
+
+    function reVote() {
+        if (!confirm("確定重新投票？票數將歸零")) return;
+        let resetList = currentCandidates.map(c => ({ ...c, votes: 0 }));
+        db.ref('election/candidates').set(resetList);
+        startVoting();
+    }
+
+    function clearCandidates() {
+        if (!confirm("確定清除候選人並準備下一位幹部？")) return;
+        currentCandidates = [];
+        db.ref('election/candidates').set([]);
+        db.ref('election/state').set({ isActive: false });
+        document.getElementById('teacher-status').textContent = "⚪ 等待開始";
+        renderCandidatesTeacher();
+    }
+
+    function confirmElection() {
+        const mode = document.getElementById('vote-mode').value;
+        const title = document.getElementById('officer-title').value;
+        if (currentCandidates.length === 0) {
+            alert("沒有候選人");
+            return;
+        }
+        let sorted = [...currentCandidates].sort((a,b)=> b.votes - a.votes);
+        let winners = [];
+        if (mode === "1") winners = sorted.slice(0,1);
+        else if (mode === "2") winners = sorted.slice(0,2);
+        else winners = sorted;
+
+        winners.forEach(w => {
+            electedList.push({
+                title: title,
+                seat: w.seat,
+                name: w.name
+            });
+        });
+        renderElectedList();
+    }
+
+    function renderElectedList() {
+        const tbody = document.getElementById('elected-body');
+        tbody.innerHTML = "";
+        electedList.forEach(e => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `<td>${e.title}</td><td>${e.seat}號 ${e.name}</td>`;
+            tbody.appendChild(tr);
+        });
+    }
+
+    function exportPDF() {
+        if (electedList.length === 0) {
+            alert("目前沒有當選名單可匯出");
+            return;
+        }
+        const tableEl = document.getElementById('elected-table');
+        if (!tableEl) {
+            alert("找不到當選名單區塊");
+            return;
+        }
+
+        const { jsPDF } = window.jspdf;
+        html2canvas(tableEl).then(canvas => {
+            const imgData = canvas.toDataURL('image/png');
+            const pdf = new jsPDF('p', 'mm', 'a4');
+            const pageWidth = pdf.internal.pageSize.getWidth();
+            const margin = 10;
+            const imgWidth = pageWidth - margin * 2;
+            const ratio = imgWidth / canvas.width;
+            const imgHeight = canvas.height * ratio;
+
+            pdf.addImage(imgData, 'PNG', margin, margin, imgWidth, imgHeight);
+            pdf.save('當選名單.pdf');
+        });
+    }
+
+    // ========== 4. 學生端 ==========
+    function initStudent() {
+        document.getElementById('role-selection').classList.add('hidden');
+        document.getElementById('student-view').classList.remove('hidden');
+
+        const stateRef = db.ref('election/state');
+
+        // 先讀一次現況
+        stateRef.once('value').then(snap => {
+            const state = snap.val();
+            syncStudentScreen(state);
+        });
+
+        // 即時更新
+        stateRef.on('value', (snapshot) => {
+            const state = snapshot.val();
+            syncStudentScreen(state);
+        });
+    }
+
+    function studentLogin() {
+        const input = document.getElementById('student-seat-input');
+        const seat = input.value.trim();
+        if (!seat) return alert("請輸入座號");
+        if (!students[seat]) return alert("沒有這個座號");
+
+        mySeat = seat;
+        document.getElementById('student-login').classList.add('hidden');
+        document.getElementById('voting-area').classList.remove('hidden');
+        document.getElementById('display-student-id').innerText = mySeat;
+    }
+
+    function syncStudentScreen(state) {
+        const statusEl = document.getElementById('student-status-bar');
+        const btnsEl   = document.getElementById('vote-options');
+        const volEl    = document.getElementById('volunteer-area');
+        const actionsEl = document.getElementById('student-actions');
+
+        if (!state || state.isActive !== true) {
+            lastState = { isActive: false };
+            statusEl.textContent = "☕ 等待老師發起下一輪...";
+            statusEl.style.background = "#fff7ed";
+            btnsEl.classList.add('hidden');
+            volEl.classList.add('hidden');
+            actionsEl.classList.add('hidden');
+            resetStudentSelection();
+            return;
+        }
+
+        lastState = state;
+
+        if (state.mode === "3") {
+            statusEl.textContent = `🙋 徵求：${state.title}`;
+            statusEl.style.background = "#dcfce7";
+            btnsEl.classList.add('hidden');
+            volEl.classList.remove('hidden');
+            actionsEl.classList.add('hidden');
+            resetStudentSelection();
+        } else {
+            statusEl.textContent = `🗳️ 正在票選：${state.title}`;
+            statusEl.style.background = "#dbeafe";
+            volEl.classList.add('hidden');
+            btnsEl.classList.remove('hidden');
+            actionsEl.classList.remove('hidden');
+
+            const max = state.candidateCount || 0;
+            document.querySelectorAll('.vote-btn').forEach((btn, idx) => {
+                if (idx < max) {
+                    btn.style.display = 'block';
+                    btn.disabled = false;
+                    btn.classList.remove('selected');
+                } else {
+                    btn.style.display = 'none';
+                }
+            });
+            resetStudentSelection();
+            updateSelectedInfo();
+        }
+    }
+
+    function resetStudentSelection() {
+        selectedCandidates = [];
+        document.querySelectorAll('.vote-btn').forEach(btn => {
+            btn.classList.remove('selected');
+        });
+        updateSelectedInfo();
+    }
+
+    function updateSelectedInfo() {
+        const info = document.getElementById('selected-info');
+        if (!info) return;
+        const maxSelect = (!lastState || lastState.mode !== "2") ? 1 : 2;
+        info.textContent = `已選：${selectedCandidates.length}/${maxSelect}位`;
+    }
+
+    function castVote(idx) {
+        if (!lastState || !lastState.isActive || lastState.mode === "3") return;
+
+        const maxSelect = (lastState.mode === "2") ? 2 : 1;
+        const alreadyIndex = selectedCandidates.indexOf(idx);
+        const buttons = document.querySelectorAll('.vote-btn');
+        const btn = buttons[idx - 1];
+
+        if (alreadyIndex >= 0) {
+            selectedCandidates.splice(alreadyIndex, 1);
+            btn.classList.remove('selected');
+        } else {
+            if (selectedCandidates.length >= maxSelect) {
+                alert(`此模式最多可選 ${maxSelect} 位候選人`);
+                return;
+            }
+            selectedCandidates.push(idx);
+            btn.classList.add('selected');
+        }
+        updateSelectedInfo();
+    }
+
+    function clearSelection() {
+        if (!lastState || !lastState.isActive || lastState.mode === "3") return;
+        resetStudentSelection();
+    }
+
+    function submitVote() {
+        if (!lastState || !lastState.isActive || lastState.mode === "3") {
+            alert("目前沒有進行中的投票");
+            return;
+        }
+        if (selectedCandidates.length === 0) {
+            alert("請先選擇候選人");
+            return;
+        }
+
+        const seatKey = mySeat || document.getElementById('display-student-id').textContent;
+        if (!seatKey) {
+            alert("請先輸入座號");
+            return;
+        }
+
+        const maxSelect = (lastState.mode === "2") ? 2 : 1;
+        if (!confirm(`確定送出？你選了 ${selectedCandidates.length}/${maxSelect} 位候選人`)) {
+            return;
+        }
+
+        const roundId = lastState.timestamp || 'default';
+        const voterRef = db.ref(`election/voters/${roundId}/${seatKey}`);
+
+        voterRef.once('value').then(snap => {
+            if (snap.exists()) {
+                alert("你這一輪已經投過票囉！");
+                return;
+            }
+            voterRef.set(true);
+
+            selectedCandidates.forEach(idx => {
+                const candidateRef = db.ref(`election/candidates/${idx - 1}/votes`);
+                candidateRef.transaction(currentVotes => (currentVotes || 0) + 1);
+            });
+
+            document.querySelectorAll('.vote-btn').forEach(b => b.disabled = true);
+            document.getElementById('submit-vote-btn').disabled = true;
+            document.getElementById('clear-vote-btn').disabled = true;
+            document.getElementById('student-status-bar').textContent = "✅ 投票成功，等待結果";
+        });
+    }
+
+    function volunteerMe() {
+        if (!lastState || !lastState.isActive || lastState.mode !== "3") {
+            alert("目前不是自願擔任模式");
+            return;
+        }
+        if (!confirm("確定自願擔任?")) return;
+
+        const seatKey = mySeat || document.getElementById('display-student-id').textContent;
+        if (!seatKey) {
+            alert("請先輸入座號");
+            return;
+        }
+
+        const roundId = lastState.timestamp || 'default';
+        const volRef = db.ref(`election/volunteers/${roundId}/${seatKey}`);
+
+        volRef.once('value').then(snap => {
+            if (snap.exists()) {
+                alert("你已經登記過囉！");
+                return;
+            }
+            volRef.set(true);
+
+            db.ref('election/candidates').once('value').then(snap2 => {
+                let list = snap2.val() || [];
+                if (!list.some(c => String(c.seat) === String(seatKey))) {
+                    list.push({ seat: seatKey, name: students[seatKey] || (seatKey + "號"), votes: 0 });
+                    db.ref('election/candidates').set(list);
+                }
+                alert("已送出申請！");
+            });
+        });
+    }
+
+    // 依網址自動進入老師/學生畫面
+    window.addEventListener('load', () => {
+        const hash = window.location.hash;
+        if (hash === '#student') {
+            initStudent();
+        } else if (hash === '#teacher') {
+            initTeacher();
+        }
+    });
+</script>
+</body>
+</html>
+
 
