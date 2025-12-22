@@ -11,7 +11,6 @@
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
 
     <style>
-        /* CSS 樣式與之前相同，為節省篇幅省略部分重複設定，保留核心 */
         :root { --primary: #2563eb; --bg: #f1f5f9; }
         body { font-family: "Microsoft JhengHei", sans-serif; margin: 0; padding: 20px; background: var(--bg); touch-action: manipulation; }
         .container { max-width: 1000px; margin: 0 auto; background: white; padding: 20px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
@@ -28,7 +27,6 @@
         .candidate-card { background: #f8fafc; border: 1px solid #cbd5e1; padding: 10px; border-radius: 5px; text-align: center; }
         .vote-count { font-size: 1.5rem; color: var(--primary); font-weight: bold; display: block; margin-top: 5px; }
         
-        /* 學生端按鈕優化 */
         .vote-buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 20px; }
         .vote-btn { padding: 30px 0; font-size: 2.5rem; background: white; border: 3px solid var(--primary); border-radius: 15px; color: var(--primary); }
         .vote-btn.selected { background: var(--primary); color: white; }
@@ -117,25 +115,22 @@
 
 <script>
     // ==========================================
-    // ⚠️ 1. 設定 Firebase (請將你的 Config 貼在下方)
+    // 1. 設定 Firebase
     // ==========================================
     const firebaseConfig = {
-  apiKey: "AIzaSyBszNFqZSwar3bQdNuH7l4IBnZ-xA5gVus",
-  authDomain: "class-vote-8dd3c.firebaseapp.com",
-  databaseURL: "https://class-vote-8dd3c-default-rtdb.firebaseio.com",
-  projectId: "class-vote-8dd3c",
-  storageBucket: "class-vote-8dd3c.firebasestorage.app",
-  messagingSenderId: "322166603892",
-  appId: "1:322166603892:web:b0b8222d9dc08a8ac5d121",
-  measurementId: "G-JWLTH9RDHN"
-};
-        // 🔥 在這裡貼上你從 Firebase Console 複製的內容
-        // 例如: apiKey: "AIzaSyD...", authDomain: "...", ...
+        apiKey: "AIzaSyBszNFqZSwar3bQdNuH7l4IBnZ-xA5gVus",
+        authDomain: "class-vote-8dd3c.firebaseapp.com",
+        databaseURL: "https://class-vote-8dd3c-default-rtdb.firebaseio.com",
+        projectId: "class-vote-8dd3c",
+        storageBucket: "class-vote-8dd3c.firebasestorage.app",
+        messagingSenderId: "322166603892",
+        appId: "1:322166603892:web:b0b8222d9dc08a8ac5d121",
+        measurementId: "G-JWLTH9RDHN"
     };
 
     // 初始化 Firebase
     if (!firebaseConfig.apiKey) {
-        alert("⚠️ 請先設定 Firebase Config 才能啟用網路連線功能！(詳見程式碼註解)");
+        alert("⚠️ 請先設定 Firebase Config");
     } else {
         firebase.initializeApp(firebaseConfig);
     }
@@ -146,59 +141,27 @@
     // ==========================================
 
     const students = {
-        1: "鄭若姍",
-        2: "吳瑋庭",
-        3: "劉于安",
-        4: "馬如君",
-        5: "張佳玉",
-        6: "胡晏瑋",
-        7: "蕭雅蕙",
-        8: "曾佩萱",
-        9: "張憶汝",
-        10: "翁嘉鍹",
-        11: "鍾沂芯",
-        12: "詹芛淳",
-        13: "曾鈴惠",
-        14: "余泓穎",
-        15: "歐奕廷",
-        16: "林泓廷",
-        17: "張玉承",
-        18: "簡鼎恩",
-        19: "陳杰安",
-        20: "林逸昌",
-        21: "吳律錡",
-        22: "白宇恆",
-        23: "蔡米傑",
-        24: "林岑謚",
-        25: "葉益華",
-        26: "王昱仁",
-        27: "高翊家",
-        28: "陳昀政",
-        29: "莊秉閎",
-        30: "廖家鴻",
-        31: "許家睿",
-        32: "張峻源",
-        33: "曾龍杰",
-        34: "周延叡"
-    };//學生名單
+        1: "鄭若姍", 2: "吳瑋庭", 3: "劉于安", 4: "馬如君", 5: "張佳玉",
+        6: "胡晏瑋", 7: "蕭雅蕙", 8: "曾佩萱", 9: "張憶汝", 10: "翁嘉鍹",
+        11: "鍾沂芯", 12: "詹芛淳", 13: "曾鈴惠", 14: "余泓穎", 15: "歐奕廷",
+        16: "林泓廷", 17: "張玉承", 18: "簡鼎恩", 19: "陳杰安", 20: "林逸昌",
+        21: "吳律錡", 22: "白宇恆", 23: "蔡米傑", 24: "林岑謚", 25: "葉益華",
+        26: "王昱仁", 27: "高翊家", 28: "陳昀政", 29: "莊秉閎", 30: "廖家鴻",
+        31: "許家睿", 32: "張峻源", 33: "曾龍杰", 34: "周延叡"
+    };
     
     const titlesMode1 = ["班長", "副班長", "風紀股長", "副風紀股長", "衛生股長", "副衛生股長", "學藝股長", "副學藝股長", "環保股長", "總務股長", "輔導股長", "合作教育股長", "公務、圖書、資訊股長", "體育股長"];
     const titlesMode2 = ["班長與副班長", "風紀股長與副風紀股長", "衛生股長與副衛生股長", "學藝股長與副學藝股長"];
 
     let mySeat = "";
-    let currentCandidates = []; // 本地暫存
+    let currentCandidates = []; 
     let electedList = [];
-
-    // --- 資料庫路徑參照 ---
-    // /election/state : 存儲當前狀態 (isActive, title, mode, candidates)
-    // /election/votes : 存儲每位候選人的得票數 { 0: 5, 1: 3 }
 
     function initTeacher() {
         document.getElementById('role-selection').classList.add('hidden');
         document.getElementById('teacher-view').classList.remove('hidden');
         updateTitleOptions();
         
-        // 監聽票數變化
         db.ref('election/candidates').on('value', (snapshot) => {
             const data = snapshot.val();
             if(data) {
@@ -212,15 +175,12 @@
         document.getElementById('role-selection').classList.add('hidden');
         document.getElementById('student-view').classList.remove('hidden');
         
-        // 監聽全域狀態
         db.ref('election/state').on('value', (snapshot) => {
             const state = snapshot.val();
             if(state) syncStudentScreen(state);
         });
     }
 
-    // --- 老師端功能 ---
-    
     function updateTitleOptions() {
         const mode = document.getElementById('vote-mode').value;
         const select = document.getElementById('officer-title');
@@ -229,13 +189,11 @@
         list.forEach(t => select.innerHTML += `<option value="${t}">${t}</option>`);
     }
 
-    // 本地先加入，稍後上傳
     function addCandidateLocal() {
         const seatInput = document.getElementById('input-seat');
         const seat = seatInput.value;
         if(!students[seat]) return alert("無此座號");
         
-        // 讀取當前遠端名單 (避免覆蓋)
         db.ref('election/candidates').once('value').then(snap => {
             let list = snap.val() || [];
             if(list.length >= 6) return alert("最多6人");
@@ -263,7 +221,6 @@
         const mode = document.getElementById('vote-mode').value;
         const title = document.getElementById('officer-title').value;
         
-        // 更新狀態：開始
         db.ref('election/state').set({
             isActive: true,
             mode: mode,
@@ -276,21 +233,18 @@
 
     function reVote() {
         if(!confirm("確定重新投票？票數將歸零")) return;
-        // 保留名單，票數歸零
         let resetList = currentCandidates.map(c => ({...c, votes: 0}));
         db.ref('election/candidates').set(resetList);
-        // 觸發重新開始
         startVoting();
     }
 
     function clearCandidates() {
-        db.ref('election/candidates').set([]); // 清空名單
-        db.ref('election/state').set({ isActive: false }); // 關閉投票
+        db.ref('election/candidates').set([]); 
+        db.ref('election/state').set({ isActive: false }); 
         document.getElementById('teacher-status').textContent = "⚪ 等待開始";
     }
 
     function confirmElection() {
-        // 計算結果
         let sorted = [...currentCandidates].sort((a,b) => b.votes - a.votes);
         const mode = document.getElementById('vote-mode').value;
         const title = document.getElementById('officer-title').value;
@@ -328,8 +282,6 @@
         doc.save('result.pdf');
     }
 
-    // --- 學生端功能 ---
-
     function studentLogin() {
         mySeat = document.getElementById('my-seat-num').value;
         if(!mySeat) return alert("請輸入座號");
@@ -362,7 +314,6 @@
             volEl.classList.add('hidden');
             btnsEl.classList.remove('hidden');
             
-            // 顯示正確數量的按鈕
             document.querySelectorAll('.vote-btn').forEach((btn, idx) => {
                 btn.style.display = (idx < state.candidateCount) ? 'block' : 'none';
                 btn.disabled = false;
@@ -374,11 +325,9 @@
     function castVote(idx) {
         if(!confirm(`投給 ${idx} 號候選人?`)) return;
         
-        // 交易更新：票數+1
         const candidateRef = db.ref(`election/candidates/${idx-1}/votes`);
         candidateRef.transaction(currentVotes => (currentVotes || 0) + 1);
 
-        // UI 鎖定
         document.querySelectorAll('.vote-btn').forEach(b => b.disabled = true);
         document.querySelectorAll('.vote-btn')[idx-1].classList.add('selected');
         document.getElementById('student-status-bar').textContent = "✅ 投票成功，等待結果";
@@ -387,7 +336,6 @@
     function volunteerMe() {
         if(!confirm("確定自願擔任?")) return;
         
-        // 將自己加入候選名單
         db.ref('election/candidates').once('value').then(snap => {
             let list = snap.val() || [];
             list.push({ seat: mySeat, name: students[mySeat], votes: 0 });
