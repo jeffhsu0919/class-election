@@ -414,28 +414,24 @@
         addCandidateLocal();
     }
 
-    function startVoting() {
-        const mode = document.getElementById('vote-mode').value;
-        const title = document.getElementById('officer-title').value;
-        if(!title) return alert("請先選擇幹部名稱");
-        if(mode !== "3" && currentCandidates.length === 0) {
-            return alert("請先加入候選人");
-        }
+   let currentState = { isActive: false };  // 放在所有函式外面
 
-        const roundId = Date.now();
+function startVoting() {
+    const mode  = document.getElementById('vote-mode').value;
+    const title = document.getElementById('officer-title').value;
 
-        db.ref('election/state').set({
-            isActive: true,
-            mode: mode,
-            title: title,
-            candidateCount: currentCandidates.length,
-            timestamp: roundId
-        });
+    currentState = {
+        isActive: true,
+        mode: mode,
+        title: title,
+        candidateCount: currentCandidates.length,
+        timestamp: Date.now()
+    };
 
-        db.ref(`election/voters/${roundId}`).set(null);
+    db.ref('election/state').set(currentState);
 
-        document.getElementById('teacher-status').textContent = "🟢 投票進行中";
-    }
+    document.getElementById('teacher-status').textContent = "🟢 投票進行中";
+}
 
     function reVote() {
         if(!confirm("確定重新投票？票數將歸零")) return;
@@ -520,13 +516,24 @@
     // ==========================================
     // 4. 學生端
     // ==========================================
+    // 全域變數：記錄學生收到的最新狀態
+    let lastState = { isActive: false };
     function initStudent() {
         document.getElementById('role-selection').classList.add('hidden');
         document.getElementById('student-view').classList.remove('hidden');
         
-        db.ref('election/state').on('value', (snapshot) => {
-            const state = snapshot.val();
-            if(state) syncStudentScreen(state);
+       const stateRef = db.ref('election/state');
+
+    // 立刻讀一次目前狀態（避免剛進來時還沒觸發 on('value')）
+    stateRef.once('value').then(snap => {
+        const state = snap.val();
+        syncStudentScreen(state);
+    });
+
+    // 之後只要老師有更新，就會即時同步
+    stateRef.on('value', (snapshot) => {
+        const state = snapshot.val();
+        syncStudentScreen(state);
         });
     }
 
@@ -546,48 +553,54 @@
     let lastState = null;
 
     function syncStudentScreen(state) {
-        lastState = state;
-        const statusEl = document.getElementById('student-status-bar');
-        const btnsEl = document.getElementById('vote-options');
-        const volEl = document.getElementById('volunteer-area');
-        const actionsEl = document.getElementById('student-actions');
+    const statusEl = document.getElementById('student-status-bar');
+    const btnsEl   = document.getElementById('vote-options');
+    const volEl    = document.getElementById('volunteer-area');
 
-        if(!state || !state.isActive) {
-            statusEl.textContent = "☕ 等待老師發起下一輪...";
-            statusEl.style.background = "#fff7ed";
-            btnsEl.classList.add('hidden');
-            volEl.classList.add('hidden');
-            if(actionsEl) actionsEl.classList.add('hidden');
-            resetStudentSelection();
-            return;
-        }
+    // 沒有任何狀態 → 視同 isActive = false
+    if (!state || state.isActive !== true) {
+        lastState = { isActive: false };
+        statusEl.textContent = "☕ 等待老師發起下一輪...";
+        statusEl.style.background = "#fff7ed";
+        btnsEl.classList.add('hidden');
+        volEl.classList.add('hidden');
+        // 把所有按鈕鎖回原狀
+        document.querySelectorAll('.vote-btn').forEach(b => {
+            b.disabled = false;
+            b.classList.remove('selected');
+        });
+        return;
+    }
 
-        if(state.mode === "3") {
-            statusEl.textContent = `🙋 徵求：${state.title}`;
-            statusEl.style.background = "#dcfce7";
-            btnsEl.classList.add('hidden');
-            volEl.classList.remove('hidden');
-            if(actionsEl) actionsEl.classList.add('hidden');
-            resetStudentSelection();
-        } else {
-            statusEl.textContent = `🗳️ 正在票選：${state.title}`;
-            statusEl.style.background = "#dbeafe";
-            volEl.classList.add('hidden');
-            btnsEl.classList.remove('hidden');
-            if(actionsEl) actionsEl.classList.remove('hidden');
+    // 有有效狀態，記起來給其他函式用（例如投票）
+    lastState = state;
 
-            const max = state.candidateCount || 0;
-            document.querySelectorAll('.vote-btn').forEach((btn, idx) => {
-                btn.style.display = (idx < max) ? 'block' : 'none';
+    if (state.mode === "3") {
+        // 模式三：自願擔任
+        statusEl.textContent = `🙋 徵求：${state.title}`;
+        statusEl.style.background = "#dcfce7";
+        btnsEl.classList.add('hidden');
+        volEl.classList.remove('hidden');
+    } else {
+        // 模式一、二：一般投票
+        statusEl.textContent = `🗳️ 正在票選：${state.title}`;
+        statusEl.style.background = "#dbeafe";
+        volEl.classList.add('hidden');
+        btnsEl.classList.remove('hidden');
+
+        const max = state.candidateCount || 0;
+        document.querySelectorAll('.vote-btn').forEach((btn, idx) => {
+            // 只開啟 1 ~ candidateCount 號按鈕
+            if (idx < max) {
+                btn.style.display = 'block';
                 btn.disabled = false;
                 btn.classList.remove('selected');
-            });
-            document.getElementById('submit-vote-btn').disabled = false;
-            document.getElementById('clear-vote-btn').disabled = false;
-            resetStudentSelection();
-            updateSelectedInfo();
-        }
+            } else {
+                btn.style.display = 'none';
+            }
+        });
     }
+}
 
     function resetStudentSelection() {
         selectedCandidates = [];
@@ -722,6 +735,7 @@
 </script>
 </body>
 </html>
+
 
 
 
