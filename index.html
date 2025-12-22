@@ -289,25 +289,17 @@
     // ==========================================
     // 1. 設定 Firebase
     // ==========================================
-    const firebaseConfig = {
+   const firebaseConfig = {
         apiKey: "AIzaSyBszNFqZSwar3bQdNuH7l4IBnZ-xA5gVus",
-        authDomain: "class-vote-8dd3c.firebaseapp.com",
-        databaseURL: "https://class-vote-8dd3c-default-rtdb.firebaseio.com",
-        projectId: "class-vote-8dd3c",
-        storageBucket: "class-vote-8dd3c.firebasestorage.app",
-        messagingSenderId: "322166603892",
-        appId: "1:322166603892:web:b0b8222d9dc08a8ac5d121",
-        measurementId: "G-JWLTH9RDHN"
+        authDomain: "class-vote-8ddf1.firebaseapp.com",
+        databaseURL: "https://class-vote-8ddf1-default-rtdb.asia-southeast1.firebasedatabase.app",
+        projectId: "class-vote-8ddf1",
+        storageBucket: "class-vote-8ddf1.appspot.com",
+        messagingSenderId: "1002479214805",
+        appId: "1:1002479214805:web:8cf4ea8ac8db3c43750931"
     };
-
-    // 初始化 Firebase
-    if (!firebaseConfig.apiKey) {
-        alert("⚠️ 請先設定 Firebase Config");
-    } else {
-        firebase.initializeApp(firebaseConfig);
-    }
+    firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
-
     // ==========================================
     // 2. 學生名單（座號 -> 姓名）
     // ==========================================
@@ -722,6 +714,7 @@
 </script>
 </body>
 </html>
+
 
 
 
