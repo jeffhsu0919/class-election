@@ -585,6 +585,19 @@ wrapper.style.left = '-99999px';
 wrapper.style.top = '0';
 document.body.appendChild(wrapper);
 
+    // 安全清理
+    const cleanup = () => {
+  if (wrapper && wrapper.parentNode) wrapper.parentNode.removeChild(wrapper);
+};
+
+html2canvas(wrapper, { scale: 2 }).then(canvas=>{
+  ...
+  cleanup();
+}).catch(err=>{
+  cleanup();
+  alert("PDF 產生失敗：" + err);
+});
+
 const { jsPDF } = window.jspdf;
 
 html2canvas(wrapper, { scale: 2 }).then(canvas=>{
@@ -597,29 +610,13 @@ html2canvas(wrapper, { scale: 2 }).then(canvas=>{
   const imgHeight=canvas.height * ratio;
 
   pdf.addImage(imgData,'PNG',margin,margin,imgWidth,imgHeight);
-  pdf.save(`${pdfTitle}.pdf`);
+ pdf.save(`${pdfTitle}.pdf`);
+cleanup();
 
-  document.body.removeChild(wrapper);
 }).catch(err=>{
-  document.body.removeChild(wrapper);
-  alert("PDF 產生失敗：" + err);
+ cleanup();
+alert("PDF 產生失敗：" + err);
 });
-
-    // 用更高解析度讓字變大/更清晰
-    html2canvas(tableEl, { scale: 2 }).then(canvas=>{
-      const imgData=canvas.toDataURL('image/png');
-      const pdf=new jsPDF('p','mm','a4');
-      const pageWidth=pdf.internal.pageSize.getWidth();
-      const margin=10;
-      const imgWidth=pageWidth - margin*2;
-      const ratio=imgWidth / canvas.width;
-      const imgHeight=canvas.height * ratio;
-
-// 表格往下推，避免蓋到標題
-const topY = 18;
-pdf.addImage(imgData,'PNG',margin,topY,imgWidth,imgHeight);
-pdf.save(`${pdfTitle}.pdf`);
-    });
   }
 
   // ========== 4. 學生端 ==========
@@ -857,6 +854,7 @@ pdf.save(`${pdfTitle}.pdf`);
 </script>
 </body>
 </html>
+
 
 
 
