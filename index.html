@@ -132,7 +132,16 @@
       margin-left:8px;
       font-size:.95rem;
     }
+.teacher-badge strong{
+  font-size: 1.35rem;
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: #0ea5e9;   /* 藍綠色底 */
+  color: white;
+  margin-left: 6px;
+}
 
+    
     @media (max-width: 640px){
       .container{padding:10px}
       button{font-size:1rem}
@@ -196,7 +205,7 @@
     <div class="flex items-center justify-between flex-wrap gap-2 mb-3">
       <h2 class="text-2xl font-black">👨‍🏫 老師管理台</h2>
       <div>
-        <span class="teacher-badge">本輪總票數：<span id="round-total-votes">0</span></span>
+        <span class="teacher-badge">本輪總票數：<strong id="round-total-votes">0</strong></span>
       </div>
     </div>
 
@@ -210,11 +219,6 @@
           <option value="3">模式三：自願擔任 (不須投票)</option>
         </select>
         <select id="officer-title"></select>
-      </div>
-
-      <div class="seat-input-row">
-        <input type="number" id="input-seat" placeholder="輸入座號加入" class="seat-input">
-        <button class="btn-blue" onclick="addCandidateLocal()">加入候選人</button>
       </div>
 
       <div class="seat-grid-wrapper">
@@ -238,6 +242,25 @@
 
     <div class="card">
       <h3 class="text-xl font-black">🏆 當選名單</h3>
+      <div class="mt-2 grid grid-cols-1 sm:grid-cols-3 gap-2">
+  <div>
+    <label class="text-sm font-bold text-slate-700">班級（例：214）</label>
+    <input id="meta-class" class="border rounded px-3 py-2 w-full" placeholder="214" />
+  </div>
+  <div>
+    <label class="text-sm font-bold text-slate-700">學年（例：114）</label>
+    <input id="meta-year" class="border rounded px-3 py-2 w-full" placeholder="114" />
+  </div>
+  <div>
+    <label class="text-sm font-bold text-slate-700">學期（例：1）</label>
+    <input id="meta-sem" class="border rounded px-3 py-2 w-full" placeholder="1" />
+  </div>
+</div>
+
+<div id="pdf-title-preview" class="mt-2 text-slate-700 font-extrabold">
+  （PDF 標題預覽會在下載時生成）
+</div>
+
       <div id="elected-table">
         <table>
           <thead>
@@ -346,21 +369,7 @@
     });
   }
 
-  function addCandidateLocal(){
-    const seatInput=document.getElementById('input-seat');
-    const seat=seatInput.value.trim();
-    if(!seat) return alert("請輸入座號");
-    if(!students[seat]) return alert("沒有這個座號的學生");
-    if(currentCandidates.length>=6) return alert("最多只能 6 位候選人");
-    if(currentCandidates.some(c=> String(c.seat)===String(seat))) return alert("這個座號已在候選人名單中");
-
-    const candidate={ seat: seat, name: students[seat], votes: 0, marked:false };
-    currentCandidates.push(candidate);
-    db.ref('election/candidates').set(currentCandidates);
-    seatInput.value="";
-  }
-
-  function toggleMarkCandidate(index){
+ function toggleMarkCandidate(index){
     if (!currentCandidates[index]) return;
     currentCandidates[index].marked = !currentCandidates[index].marked;
     db.ref('election/candidates').set(currentCandidates);
@@ -405,10 +414,17 @@
     }
   }
 
-  function addCandidateBySeat(seat){
-    document.getElementById('input-seat').value=seat;
-    addCandidateLocal();
-  }
+ function addCandidateBySeat(seat){
+  const s = String(seat);
+
+  if(!students[s]) return alert("沒有這個座號的學生");
+  if(currentCandidates.length>=6) return alert("最多只能 6 位候選人");
+  if(currentCandidates.some(c=> String(c.seat)===s)) return alert("這個座號已在候選人名單中");
+
+  const candidate={ seat: s, name: students[s], votes: 0, marked:false };
+  currentCandidates.push(candidate);
+  db.ref('election/candidates').set(currentCandidates);
+}
 
   function startVoting(){
     const mode=document.getElementById('vote-mode').value;
@@ -531,6 +547,28 @@
 
     const { jsPDF } = window.jspdf;
 
+    const classVal = (document.getElementById('meta-class')?.value || "").trim();
+const yearVal  = (document.getElementById('meta-year')?.value || "").trim();
+const semVal   = (document.getElementById('meta-sem')?.value || "").trim();
+
+function classToText(v){
+  // 214 -> 2年14班
+  if(!/^\d{3}$/.test(v)) return v ? `${v}班` : "";
+  const g = v[0];
+  const c = parseInt(v.slice(1), 10);
+  return `${g}年${c}班`;
+}
+
+const titleParts = [];
+if(classVal) titleParts.push(classToText(classVal));
+if(yearVal) titleParts.push(`${yearVal}學年`);
+if(semVal)  titleParts.push(`第${semVal}學期`);
+const pdfTitle = (titleParts.length ? `${titleParts.join(" ")} ` : "") + "班級幹部當選名單";
+
+// 預覽（可選）
+const preview = document.getElementById('pdf-title-preview');
+if(preview) preview.textContent = `PDF 標題：${pdfTitle}`;
+
     // 用更高解析度讓字變大/更清晰
     html2canvas(tableEl, { scale: 2 }).then(canvas=>{
       const imgData=canvas.toDataURL('image/png');
@@ -541,8 +579,14 @@
       const ratio=imgWidth / canvas.width;
       const imgHeight=canvas.height * ratio;
 
-      pdf.addImage(imgData,'PNG',margin,margin,imgWidth,imgHeight);
-      pdf.save('當選名單.pdf');
+     // 標題
+pdf.setFontSize(16);
+pdf.text(pdfTitle, margin, 14);
+
+// 表格往下推，避免蓋到標題
+const topY = 18;
+pdf.addImage(imgData,'PNG',margin,topY,imgWidth,imgHeight);
+pdf.save(`${pdfTitle}.pdf`);
     });
   }
 
@@ -781,5 +825,6 @@
 </script>
 </body>
 </html>
+
 
 
