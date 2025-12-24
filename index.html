@@ -205,7 +205,7 @@
     <div class="flex items-center justify-between flex-wrap gap-2 mb-3">
       <h2 class="text-2xl font-black">👨‍🏫 老師管理台</h2>
       <div>
-        <span class="teacher-badge">本輪總票數：<strong id="round-total-votes">0</strong></span>
+        <span class="teacher-badge">完成投票總人數：<strong id="round-total-votes">0</strong></span>
       </div>
     </div>
 
@@ -543,16 +543,13 @@
   function exportPDF(){
     if(electedList.length===0) return alert("目前沒有當選名單可匯出");
     const tableEl=document.getElementById('elected-table');
-    if(!tableEl) return alert("找不到當選名單區塊");
+  if(!tableEl) return alert("找不到當選名單區塊");
 
-    const { jsPDF } = window.jspdf;
-
-    const classVal = (document.getElementById('meta-class')?.value || "").trim();
+const classVal = (document.getElementById('meta-class')?.value || "").trim();
 const yearVal  = (document.getElementById('meta-year')?.value || "").trim();
 const semVal   = (document.getElementById('meta-sem')?.value || "").trim();
 
 function classToText(v){
-  // 214 -> 2年14班
   if(!/^\d{3}$/.test(v)) return v ? `${v}班` : "";
   const g = v[0];
   const c = parseInt(v.slice(1), 10);
@@ -565,9 +562,48 @@ if(yearVal) titleParts.push(`${yearVal}學年`);
 if(semVal)  titleParts.push(`第${semVal}學期`);
 const pdfTitle = (titleParts.length ? `${titleParts.join(" ")} ` : "") + "班級幹部當選名單";
 
-// 預覽（可選）
-const preview = document.getElementById('pdf-title-preview');
-if(preview) preview.textContent = `PDF 標題：${pdfTitle}`;
+// ✅ 用 DOM 組合「標題 + 表格」再截圖，避免中文亂碼
+const wrapper = document.createElement('div');
+wrapper.style.background = '#fff';
+wrapper.style.padding = '14px';
+wrapper.style.width = tableEl.offsetWidth + 'px';
+
+const titleDiv = document.createElement('div');
+titleDiv.textContent = pdfTitle;
+titleDiv.style.fontSize = '20px';
+titleDiv.style.fontWeight = '900';
+titleDiv.style.marginBottom = '10px';
+titleDiv.style.color = '#0f172a';
+
+const tableClone = tableEl.cloneNode(true);
+
+wrapper.appendChild(titleDiv);
+wrapper.appendChild(tableClone);
+
+wrapper.style.position = 'fixed';
+wrapper.style.left = '-99999px';
+wrapper.style.top = '0';
+document.body.appendChild(wrapper);
+
+const { jsPDF } = window.jspdf;
+
+html2canvas(wrapper, { scale: 2 }).then(canvas=>{
+  const imgData=canvas.toDataURL('image/png');
+  const pdf=new jsPDF('p','mm','a4');
+  const pageWidth=pdf.internal.pageSize.getWidth();
+  const margin=10;
+  const imgWidth=pageWidth - margin*2;
+  const ratio=imgWidth / canvas.width;
+  const imgHeight=canvas.height * ratio;
+
+  pdf.addImage(imgData,'PNG',margin,margin,imgWidth,imgHeight);
+  pdf.save(`${pdfTitle}.pdf`);
+
+  document.body.removeChild(wrapper);
+}).catch(err=>{
+  document.body.removeChild(wrapper);
+  alert("PDF 產生失敗：" + err);
+});
 
     // 用更高解析度讓字變大/更清晰
     html2canvas(tableEl, { scale: 2 }).then(canvas=>{
@@ -578,10 +614,6 @@ if(preview) preview.textContent = `PDF 標題：${pdfTitle}`;
       const imgWidth=pageWidth - margin*2;
       const ratio=imgWidth / canvas.width;
       const imgHeight=canvas.height * ratio;
-
-     // 標題
-pdf.setFontSize(16);
-pdf.text(pdfTitle, margin, 14);
 
 // 表格往下推，避免蓋到標題
 const topY = 18;
@@ -825,6 +857,7 @@ pdf.save(`${pdfTitle}.pdf`);
 </script>
 </body>
 </html>
+
 
 
 
