@@ -545,9 +545,13 @@
     const tableEl=document.getElementById('elected-table');
   if(!tableEl) return alert("找不到當選名單區塊");
 
-const classVal = (document.getElementById('meta-class')?.value || "").trim();
-const yearVal  = (document.getElementById('meta-year')?.value || "").trim();
-const semVal   = (document.getElementById('meta-sem')?.value || "").trim();
+  const metaClassEl = document.getElementById('meta-class');
+  const metaYearEl  = document.getElementById('meta-year');
+  const metaSemEl   = document.getElementById('meta-sem');
+
+  const classVal = ((metaClassEl && metaClassEl.value) ? metaClassEl.value : "").trim();
+  const yearVal  = ((metaYearEl  && metaYearEl.value)  ? metaYearEl.value  : "").trim();
+  const semVal   = ((metaSemEl   && metaSemEl.value)   ? metaSemEl.value   : "").trim();
 
 function classToText(v){
   if(!/^\d{3}$/.test(v)) return v ? `${v}班` : "";
@@ -589,17 +593,7 @@ document.body.appendChild(wrapper);
     const cleanup = () => {
   if (wrapper && wrapper.parentNode) wrapper.parentNode.removeChild(wrapper);
 };
-
-html2canvas(wrapper, { scale: 2 }).then(canvas=>{
-  ...
-  cleanup();
-}).catch(err=>{
-  cleanup();
-  alert("PDF 產生失敗：" + err);
-});
-
 const { jsPDF } = window.jspdf;
-
 html2canvas(wrapper, { scale: 2 }).then(canvas=>{
   const imgData=canvas.toDataURL('image/png');
   const pdf=new jsPDF('p','mm','a4');
@@ -854,6 +848,7 @@ alert("PDF 產生失敗：" + err);
 </script>
 </body>
 </html>
+
 
 
 
