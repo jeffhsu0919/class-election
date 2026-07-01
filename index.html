@@ -122,6 +122,54 @@
     .teacher-controls{display:flex;flex-wrap:wrap;gap:10px;margin-top:10px}
     .teacher-controls button{font-weight:800}
 
+    .teacher-vote-control-layout{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:18px;
+    }
+
+    .teacher-vote-control-left{
+      flex:1;
+      min-width:0;
+    }
+
+    .teacher-qr-box{
+      flex:0 0 auto;
+      width:150px;
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      justify-content:center;
+      padding:10px;
+      border:1px solid #e5e7eb;
+      border-radius:14px;
+      background:#ffffff;
+    }
+
+    .teacher-qr-img{
+      width:118px;
+      height:118px;
+      object-fit:contain;
+      display:block;
+    }
+
+    .teacher-qr-title{
+      margin-top:6px;
+      font-size:.85rem;
+      font-weight:900;
+      color:#0f172a;
+      text-align:center;
+    }
+
+    .teacher-qr-hint{
+      margin-top:2px;
+      font-size:.72rem;
+      color:#64748b;
+      text-align:center;
+      line-height:1.2;
+    }
+
     .teacher-badge{
       display:inline-block;
       padding:6px 10px;
@@ -146,6 +194,20 @@
       .container{padding:10px}
       button{font-size:1rem}
       .mode-title-row select{min-width:0}
+
+      .teacher-vote-control-layout{
+        flex-direction:column;
+        align-items:stretch;
+      }
+
+      .teacher-qr-box{
+        width:100%;
+      }
+
+      .teacher-qr-img{
+        width:140px;
+        height:140px;
+      }
     }
   </style>
 </head>
@@ -230,13 +292,24 @@
 
     <div class="section">
       <div class="section-title">2) 投票控制</div>
-      <p id="teacher-status" style="margin-bottom:10px;font-weight:800;">⚪ 等待開始</p>
 
-      <div class="teacher-controls">
-        <button class="btn-green" onclick="startVoting()">開始投票 / 開放自願</button>
-        <button class="btn-red" onclick="reVote()">重新投票</button>
-        <button class="btn-gray" onclick="clearCandidates()">清除 / 下一位</button>
-        <button class="btn-blue" onclick="confirmElection()">✅ 確認當選</button>
+      <div class="teacher-vote-control-layout">
+        <div class="teacher-vote-control-left">
+          <p id="teacher-status" style="margin-bottom:10px;font-weight:800;">⚪ 等待開始</p>
+
+          <div class="teacher-controls">
+            <button class="btn-green" onclick="startVoting()">開始投票 / 開放自願</button>
+            <button class="btn-red" onclick="reVote()">重新投票</button>
+            <button class="btn-gray" onclick="clearCandidates()">清除 / 下一位</button>
+            <button class="btn-blue" onclick="confirmElection()">✅ 確認當選</button>
+          </div>
+        </div>
+
+        <div class="teacher-qr-box">
+          <img src="QR.jpg" alt="學生投票 QR Code" class="teacher-qr-img">
+          <div class="teacher-qr-title">學生投票 QR Code</div>
+          <div class="teacher-qr-hint">學生掃描後進入投票頁面</div>
+        </div>
       </div>
     </div>
 
@@ -848,9 +921,4 @@ alert("PDF 產生失敗：" + err);
 </script>
 </body>
 </html>
-
-
-
-
-
 
